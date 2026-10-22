@@ -22,3 +22,5 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: false
+patchedDependencies:
+  next-intl@4.14.9: patches/next-intl@4.14.9.patch

@@ -38,6 +38,7 @@ export interface Customer {
   passwordHash?: string | null;
   nationalId?: string | null;
   address?: string | null; // Legacy field
+  occupationAddress?: string | null;
   notes?: string | null;
   isActive: boolean;
   createdAt: string;
@@ -98,6 +99,7 @@ export const registerCustomerSchema = z
     email: emailSchema,
     password: passwordSchema,
     nationalId: nationalIdSchema.optional(),
+    occupationAddress: z.string().trim().max(500).optional(),
     address: z
       .object({
         label: z.string().max(100).optional(),
@@ -120,6 +122,7 @@ export const createCustomerSchema = z
     phone: phoneSchema,
     email: emailSchema.optional(),
     nationalId: nationalIdSchema.optional(),
+    occupationAddress: z.string().trim().max(500).optional(),
     notes: notesSchema.optional(),
     address: z
       .object({
@@ -143,6 +146,7 @@ export const updateCustomerSchema = z
     phone: phoneSchema.optional(),
     email: emailSchema.optional(),
     nationalId: nationalIdSchema.optional(),
+    occupationAddress: z.string().trim().max(500).optional(),
     notes: notesSchema.optional(),
     isActive: z.boolean().optional(),
   })

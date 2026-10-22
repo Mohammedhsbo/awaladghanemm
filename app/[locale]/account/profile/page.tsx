@@ -30,6 +30,13 @@ export default function ProfilePage() {
     formState: { errors },
   } = useForm<UpdateCustomerDto>({
     resolver: zodResolver(updateCustomerSchema),
+    defaultValues: {
+      name: "",
+      phone: "",
+      email: "",
+      nationalId: "",
+      occupationAddress: "",
+    },
   });
 
   useEffect(() => {

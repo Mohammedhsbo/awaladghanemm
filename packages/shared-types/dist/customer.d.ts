@@ -10,6 +10,7 @@ export interface Customer {
     passwordHash?: string | null;
     nationalId?: string | null;
     address?: string | null;
+    occupationAddress?: string | null;
     notes?: string | null;
     isActive: boolean;
     createdAt: string;
@@ -57,6 +58,7 @@ export declare const registerCustomerSchema: z.ZodObject<{
     email: z.ZodString;
     password: z.ZodString;
     nationalId: z.ZodOptional<z.ZodString>;
+    occupationAddress: z.ZodOptional<z.ZodString>;
     address: z.ZodOptional<z.ZodObject<{
         label: z.ZodOptional<z.ZodString>;
         addressLine: z.ZodString;
@@ -92,6 +94,7 @@ export declare const registerCustomerSchema: z.ZodObject<{
         postalCode?: string | undefined;
         country?: string | undefined;
     } | undefined;
+    occupationAddress?: string | undefined;
     nationalId?: string | undefined;
 }, {
     name: string;
@@ -106,6 +109,7 @@ export declare const registerCustomerSchema: z.ZodObject<{
         postalCode?: string | undefined;
         country?: string | undefined;
     } | undefined;
+    occupationAddress?: string | undefined;
     nationalId?: string | undefined;
 }>;
 export type RegisterCustomerDto = z.infer<typeof registerCustomerSchema>;
@@ -114,6 +118,7 @@ export declare const createCustomerSchema: z.ZodObject<{
     phone: z.ZodEffects<z.ZodString, string, string>;
     email: z.ZodOptional<z.ZodString>;
     nationalId: z.ZodOptional<z.ZodString>;
+    occupationAddress: z.ZodOptional<z.ZodString>;
     notes: z.ZodOptional<z.ZodString>;
     address: z.ZodOptional<z.ZodObject<{
         label: z.ZodOptional<z.ZodString>;
@@ -150,6 +155,7 @@ export declare const createCustomerSchema: z.ZodObject<{
         postalCode?: string | undefined;
         country?: string | undefined;
     } | undefined;
+    occupationAddress?: string | undefined;
     nationalId?: string | undefined;
 }, {
     name: string;
@@ -164,6 +170,7 @@ export declare const createCustomerSchema: z.ZodObject<{
         postalCode?: string | undefined;
         country?: string | undefined;
     } | undefined;
+    occupationAddress?: string | undefined;
     nationalId?: string | undefined;
 }>;
 export type CreateCustomerDto = z.infer<typeof createCustomerSchema>;
@@ -172,6 +179,7 @@ export declare const updateCustomerSchema: z.ZodEffects<z.ZodObject<{
     phone: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
     email: z.ZodOptional<z.ZodString>;
     nationalId: z.ZodOptional<z.ZodString>;
+    occupationAddress: z.ZodOptional<z.ZodString>;
     notes: z.ZodOptional<z.ZodString>;
     isActive: z.ZodOptional<z.ZodBoolean>;
 }, "strict", z.ZodTypeAny, {
@@ -180,6 +188,7 @@ export declare const updateCustomerSchema: z.ZodEffects<z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     isActive?: boolean | undefined;
+    occupationAddress?: string | undefined;
     nationalId?: string | undefined;
 }, {
     notes?: string | undefined;
@@ -187,6 +196,7 @@ export declare const updateCustomerSchema: z.ZodEffects<z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     isActive?: boolean | undefined;
+    occupationAddress?: string | undefined;
     nationalId?: string | undefined;
 }>, {
     notes?: string | undefined;
@@ -194,6 +204,7 @@ export declare const updateCustomerSchema: z.ZodEffects<z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     isActive?: boolean | undefined;
+    occupationAddress?: string | undefined;
     nationalId?: string | undefined;
 }, {
     notes?: string | undefined;
@@ -201,6 +212,7 @@ export declare const updateCustomerSchema: z.ZodEffects<z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     isActive?: boolean | undefined;
+    occupationAddress?: string | undefined;
     nationalId?: string | undefined;
 }>;
 export type UpdateCustomerDto = z.infer<typeof updateCustomerSchema>;

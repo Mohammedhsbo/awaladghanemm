@@ -5,7 +5,7 @@ import { useRouter } from "@/i18n/routing"
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiClient, ApiError } from "@/lib/api-client";
+import { apiClient, ApiError, getAuthToken } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
@@ -108,6 +108,7 @@ export default function OrderDetailPage() {
   const setupWebSocket = () => {
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3000";
     const newSocket = io(wsUrl, {
+      auth: { token: getAuthToken() },
       transports: ["websocket"],
       autoConnect: true,
     });

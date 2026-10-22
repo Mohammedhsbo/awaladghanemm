@@ -24,6 +24,7 @@ export interface CustomerProfile {
   email: string;
   phone: string;
   nationalId?: string;
+  occupationAddress?: string | null;
   status: string;
   addresses: Address[];
 }
