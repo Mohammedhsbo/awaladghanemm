@@ -5,7 +5,7 @@ import { useRouter } from "@/i18n/routing";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerCustomerSchema, type RegisterCustomerDto } from "@motorcycle-system/shared-types";
-import { apiClient, ApiError } from "@/lib/api-client";
+import { API_BASE, apiClient, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/Card";
 import { Input } from "@/components/Input";
@@ -197,7 +197,7 @@ export default function RegisterPage() {
               variant="outline"
               className="w-full flex items-center justify-center gap-2"
               onClick={() => {
-                window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1"}/auth/google`;
+                window.location.href = `${API_BASE}/auth/google`;
               }}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">

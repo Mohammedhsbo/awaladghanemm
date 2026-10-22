@@ -7,7 +7,9 @@ function normalizeEndpoint(endpoint: string) {
   return endpoint.replace(/^\/+/, "");
 }
 
-const API_BASE = normalizeApiBase(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1");
+export const API_BASE = normalizeApiBase(
+  process.env.NEXT_PUBLIC_API_URL || "https://api-production-2c752.up.railway.app/api/v1",
+);
 
 export interface ApiResponse<T> {
   success: boolean;

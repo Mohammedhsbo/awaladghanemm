@@ -12,7 +12,7 @@ import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { ApiError } from "@/lib/api-client";
+import { API_BASE, ApiError } from "@/lib/api-client";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -110,7 +110,7 @@ export default function LoginPage() {
               variant="outline"
               className="w-full flex items-center justify-center gap-2"
               onClick={() => {
-                window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1"}/auth/google`;
+                window.location.href = `${API_BASE}/auth/google`;
               }}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">

@@ -1,4 +1,4 @@
-import { apiClient } from "./api-client";
+import { API_BASE, apiClient } from "./api-client";
 
 export interface FinancingCompany { id: string; name: string; annualInterestRate: number; }
 export interface InstallmentDuration { id: string; months: number; }
@@ -45,9 +45,7 @@ export async function uploadInstallmentDocument(file: File) {
   form.append("file", file);
   
   const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
-  
-  const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/upload/customer`, {
+  const res = await fetch(`${API_BASE}/upload/customer`, {
     method: "POST",
     headers: token ? { "Authorization": `Bearer ${token}` } : {},
     body: form,
