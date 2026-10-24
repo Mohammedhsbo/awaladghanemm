@@ -3,8 +3,17 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Banknote, Building2, CheckCircle2, FileText, HandCoins, IdCard, ShieldCheck, UserRound } from "lucide-react";
+import { Building2, FileText, HandCoins, IdCard, ShieldCheck, UserRound } from "lucide-react";
 import { calculateInstallment, listFinancingCompanies, listInstallmentDurations, submitInstallmentRequest, uploadInstallmentDocument, type FinancingCompany, type InstallmentDuration, type InstallmentCalculation } from "@/lib/financing-api";
+import {
+  buildInstallmentRequestPayload,
+  isEmploymentDocumentType,
+  missingInstallmentRequestFields,
+  requiredInstallmentDocumentKeys,
+  validateCustomerDocumentFile,
+  type CustomerDocumentType,
+  type InstallmentDocumentFiles,
+} from "@/lib/installment-request-form";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "@/i18n/routing";
@@ -15,6 +24,7 @@ const buyerFields = [
   { key: "buyerEmail", type: "email", optional: true },
   { key: "buyerAddress", type: "text", optional: true },
   { key: "buyerOccupation", type: "text", optional: true },
+  { key: "buyerOccupationAddress", type: "text", optional: true },
 ] as const;
 
 const documentTypeOptions = [
@@ -24,11 +34,8 @@ const documentTypeOptions = [
   { value: "NEITHER", labelKey: "documentTypeNeither", descKey: "documentTypeNeitherDesc" },
 ] as const;
 
-type DocumentType = (typeof documentTypeOptions)[number]["value"];
-
 export default function InstallmentRequestPage() {
   const t = useTranslations("installmentRequest");
-  const tCommon = useTranslations("common");
   const searchParams = useSearchParams();
   const motorcycleId = searchParams.get("motorcycleId") ?? "";
   const { user, isAuthenticated } = useAuth();
@@ -38,9 +45,9 @@ export default function InstallmentRequestPage() {
   const [durationId, setDurationId] = useState("");
   const [downPayment, setDownPayment] = useState(0);
   const [calculation, setCalculation] = useState<InstallmentCalculation | null>(null);
-  const [documentType, setDocumentType] = useState<DocumentType>("EMPLOYEE");
+  const [documentType, setDocumentType] = useState<CustomerDocumentType>("EMPLOYEE");
   const [values, setValues] = useState<Record<string, string>>({});
-  const [files, setFiles] = useState<Record<string, File | null>>({});
+  const [files, setFiles] = useState<InstallmentDocumentFiles>({});
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -62,14 +69,15 @@ export default function InstallmentRequestPage() {
     if (!isAuthenticated || !user?.id) return;
 
     apiClient
-      .get<{ name?: string; phone?: string; email?: string | null; address?: string | null }>(`/customers/${user.id}`)
-      .then((customer: { name?: string; phone?: string; email?: string | null; address?: string | null }) => {
+      .get<{ name?: string; phone?: string; email?: string | null; address?: string | null; occupationAddress?: string | null }>(`/customers/${user.id}`)
+      .then((customer: { name?: string; phone?: string; email?: string | null; address?: string | null; occupationAddress?: string | null }) => {
         setValues((prev) => ({
           ...prev,
           buyerName: customer.name ?? prev.buyerName ?? "",
           buyerPhone: customer.phone ?? prev.buyerPhone ?? "",
           buyerEmail: customer.email ?? prev.buyerEmail ?? "",
           buyerAddress: customer.address ?? prev.buyerAddress ?? "",
+          buyerOccupationAddress: customer.occupationAddress ?? prev.buyerOccupationAddress ?? "",
         }));
       })
       .catch(() => undefined);
@@ -123,44 +131,26 @@ export default function InstallmentRequestPage() {
       return;
     }
 
-    const requiredKeys = ["buyerName", "buyerPhone"];
-    const missingKey = requiredKeys.find((key) => !values[key]?.trim());
-    if (missingKey) {
-      setMessage(t("errorRequiredFields"));
+    const missingFields = missingInstallmentRequestFields(documentType, values);
+    if (missingFields.length > 0) {
+      setMessage(missingFields.some((key) => key === "buyerAddress" || key === "buyerOccupation")
+        ? t("errorAddressOccupation")
+        : missingFields.some((key) => key.startsWith("guarantor") || key.startsWith("secondGuarantor"))
+          ? t("errorGuarantorFields")
+          : t("errorRequiredFields"));
       return;
     }
 
-    if ((documentType === "EMPLOYEE" || documentType === "PENSION" || documentType === "COMMERCIAL_REGISTRY") && (!values.buyerAddress?.trim() || !values.buyerOccupation?.trim())) {
-      setMessage(t("errorAddressOccupation"));
+    const requiredFiles = requiredInstallmentDocumentKeys(documentType);
+    if (requiredFiles.some((key) => !files[key])) {
+      setMessage(documentType === "EMPLOYEE"
+        ? t("errorDocumentsEmployee")
+        : documentType === "PENSION"
+          ? t("errorDocumentsPension")
+          : documentType === "COMMERCIAL_REGISTRY"
+            ? t("errorDocumentsCommercial")
+            : t("errorDocumentsNeither"));
       return;
-    }
-
-    if (documentType === "EMPLOYEE") {
-      if (!files.salarySlipImage || !files.idCardFrontImage || !files.idCardBackImage) {
-        setMessage(t("errorDocumentsEmployee"));
-        return;
-      }
-    }
-
-    if (documentType === "PENSION") {
-      if (!files.pensionDocumentImage || !files.idCardFrontImage || !files.idCardBackImage) {
-        setMessage(t("errorDocumentsPension"));
-        return;
-      }
-    }
-
-    if (documentType === "COMMERCIAL_REGISTRY") {
-      if (!files.commercialRegistryImage || !files.idCardFrontImage || !files.idCardBackImage) {
-        setMessage(t("errorDocumentsCommercial"));
-        return;
-      }
-    }
-
-    if (documentType === "NEITHER") {
-      if (!files.buyerIdFrontImage || !files.buyerIdBackImage || !files.guarantor1IdFrontImage || !files.guarantor1IdBackImage || !files.guarantor2IdFrontImage || !files.guarantor2IdBackImage) {
-        setMessage(t("errorDocumentsNeither"));
-        return;
-      }
     }
 
     try {
@@ -168,27 +158,26 @@ export default function InstallmentRequestPage() {
       setMessage("");
 
       const uploadedEntries = await Promise.all(
-        Object.entries(files).filter(([, file]) => !!file).map(async ([key, file]) => {
-          const result = await uploadInstallmentDocument(file as File);
+        requiredFiles.map(async (key) => {
+          const file = files[key];
+          if (!file) throw new Error(t("errorRequiredDocuments"));
+          const result = await uploadInstallmentDocument(file);
           return [key, result.url] as const;
         }),
       );
 
       const documentUrls = Object.fromEntries(uploadedEntries);
 
-      await submitInstallmentRequest({
-        ...values,
+      await submitInstallmentRequest(buildInstallmentRequestPayload({
+        values,
+        documentType,
         motorcycleId,
         financingCompanyId: companyId,
         installmentDurationId: durationId,
         downPayment,
         monthlyInstallment: calculation.monthlyInstallment,
-        buyerNationalIdImage: documentUrls.buyerIdFrontImage ?? documentUrls.idCardFrontImage ?? "",
-        salarySlipImage: documentUrls.salarySlipImage ?? "",
-        apartmentContractImage: documentUrls.apartmentContractImage ?? "",
-        guarantorNationalIdImage: documentUrls.guarantorNationalIdImage ?? documentUrls.guarantor1IdFrontImage ?? "",
-        ...documentUrls,
-      });
+        documentUrls,
+      }));
 
       setMessage(t("successMessage"));
       setCalculation(null);
@@ -205,6 +194,24 @@ export default function InstallmentRequestPage() {
 
   const updateValue = (key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateFile = (key: keyof InstallmentDocumentFiles, file: File | null) => {
+    if (file) {
+      const validationError = validateCustomerDocumentFile(file);
+      if (validationError === "unsupported") {
+        setFiles((previous) => ({ ...previous, [key]: null }));
+        setMessage(t("errorUnsupportedFileType"));
+        return;
+      }
+      if (validationError === "size") {
+        setFiles((previous) => ({ ...previous, [key]: null }));
+        setMessage(t("errorFileSize"));
+        return;
+      }
+    }
+    setMessage("");
+    setFiles((previous) => ({ ...previous, [key]: file }));
   };
 
   if (!isAuthenticated) {
@@ -241,11 +248,19 @@ export default function InstallmentRequestPage() {
           </div>
 
           <div className="grid gap-6 p-6 md:grid-cols-2 md:p-8">
-            {buyerFields.map((field) => (
+            {buyerFields
+              .filter((field) =>
+                !["buyerAddress", "buyerOccupation", "buyerOccupationAddress"].includes(field.key)
+                || isEmploymentDocumentType(documentType),
+              )
+              .map((field) => (
               <label key={field.key} className="text-sm font-semibold text-slate-700">
                 {t(field.key as any)} {!field.optional && <span className="text-red-500">*</span>}
                 <input
                   required={!field.optional}
+                  aria-required={field.key === "buyerAddress" || field.key === "buyerOccupation"
+                    ? isEmploymentDocumentType(documentType)
+                    : !field.optional}
                   type={field.type}
                   value={values[field.key] ?? ""}
                   onChange={(event) => updateValue(field.key, event.target.value)}
@@ -378,42 +393,84 @@ export default function InstallmentRequestPage() {
           </div>
 
           <div className="grid gap-6 p-6 md:grid-cols-2 md:p-8">
-            {documentType === "EMPLOYEE" && (
+            {documentType !== "NEITHER" && (
               <>
-                <FileUpload label={t("salarySlipImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, salarySlipImage: file }))} />
-                <FileUpload label={t("idCardFrontImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, idCardFrontImage: file }))} />
-                <FileUpload label={t("idCardBackImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, idCardBackImage: file }))} />
-              </>
-            )}
-
-            {documentType === "PENSION" && (
-              <>
-                <FileUpload label={t("pensionDocumentImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, pensionDocumentImage: file }))} />
-                <FileUpload label={t("idCardFrontImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, idCardFrontImage: file }))} />
-                <FileUpload label={t("idCardBackImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, idCardBackImage: file }))} />
-              </>
-            )}
-
-            {documentType === "COMMERCIAL_REGISTRY" && (
-              <>
-                <FileUpload label={t("commercialRegistryImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, commercialRegistryImage: file }))} />
-                <FileUpload label={t("idCardFrontImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, idCardFrontImage: file }))} />
-                <FileUpload label={t("idCardBackImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, idCardBackImage: file }))} />
+                <FileUpload
+                  label={t(documentType === "EMPLOYEE" ? "salarySlipImage" : documentType === "PENSION" ? "pensionDocumentImage" : "commercialRegistryImage")}
+                  required
+                  onChange={(file) => updateFile("supportingDocumentImage", file)}
+                />
+                <FileUpload label={t("idCardFrontImage")} required onChange={(file) => updateFile("buyerIdFrontImage", file)} />
+                <FileUpload label={t("idCardBackImage")} required onChange={(file) => updateFile("buyerIdBackImage", file)} />
               </>
             )}
 
             {documentType === "NEITHER" && (
               <>
-                <FileUpload label={t("buyerIdFrontImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, buyerIdFrontImage: file }))} />
-                <FileUpload label={t("buyerIdBackImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, buyerIdBackImage: file }))} />
-                <FileUpload label={t("guarantor1IdFrontImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, guarantor1IdFrontImage: file }))} />
-                <FileUpload label={t("guarantor1IdBackImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, guarantor1IdBackImage: file }))} />
-                <FileUpload label={t("guarantor2IdFrontImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, guarantor2IdFrontImage: file }))} />
-                <FileUpload label={t("guarantor2IdBackImage")} required onChange={(file) => setFiles((prev) => ({ ...prev, guarantor2IdBackImage: file }))} />
+                <FileUpload label={t("buyerIdFrontImage")} required onChange={(file) => updateFile("buyerIdFrontImage", file)} />
+                <FileUpload label={t("buyerIdBackImage")} required onChange={(file) => updateFile("buyerIdBackImage", file)} />
+                <FileUpload label={t("guarantor1IdFrontImage")} required onChange={(file) => updateFile("guarantor1IdFrontImage", file)} />
+                <FileUpload label={t("guarantor1IdBackImage")} required onChange={(file) => updateFile("guarantor1IdBackImage", file)} />
+                <FileUpload label={t("guarantor2IdFrontImage")} required onChange={(file) => updateFile("guarantor2IdFrontImage", file)} />
+                <FileUpload label={t("guarantor2IdBackImage")} required onChange={(file) => updateFile("guarantor2IdBackImage", file)} />
               </>
             )}
           </div>
         </div>
+
+        {documentType === "NEITHER" && (
+          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-900/5">
+            <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-5 text-white md:px-8">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-100">{t("step5Label")}</p>
+                <h2 className="mt-1 text-2xl font-black">{t("step5Title")}</h2>
+              </div>
+              <Building2 className="h-8 w-8 text-teal-100" />
+            </div>
+            <div className="grid gap-6 p-6 md:grid-cols-2 md:p-8">
+              <label className="text-sm font-semibold text-slate-700">
+                {t("guarantorName")} <span className="text-red-500">*</span>
+                <input aria-required value={values.guarantorName ?? ""} onChange={(event) => updateValue("guarantorName", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {t("guarantorPhone")} <span className="text-red-500">*</span>
+                <input aria-required type="tel" value={values.guarantorPhone ?? ""} onChange={(event) => updateValue("guarantorPhone", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {t("guarantorAddress")}
+                <input value={values.guarantorAddress ?? ""} onChange={(event) => updateValue("guarantorAddress", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {t("guarantorOccupation")}
+                <input value={values.guarantorOccupation ?? ""} onChange={(event) => updateValue("guarantorOccupation", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {t("guarantorOccupationAddress")}
+                <input value={values.guarantorOccupationAddress ?? ""} onChange={(event) => updateValue("guarantorOccupationAddress", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {t("secondGuarantorName")} <span className="text-red-500">*</span>
+                <input aria-required value={values.secondGuarantorName ?? ""} onChange={(event) => updateValue("secondGuarantorName", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {t("secondGuarantorPhone")} <span className="text-red-500">*</span>
+                <input aria-required type="tel" value={values.secondGuarantorPhone ?? ""} onChange={(event) => updateValue("secondGuarantorPhone", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {t("secondGuarantorAddress")}
+                <input value={values.secondGuarantorAddress ?? ""} onChange={(event) => updateValue("secondGuarantorAddress", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {t("secondGuarantorOccupation")}
+                <input value={values.secondGuarantorOccupation ?? ""} onChange={(event) => updateValue("secondGuarantorOccupation", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                {t("secondGuarantorOccupationAddress")}
+                <input value={values.secondGuarantorOccupationAddress ?? ""} onChange={(event) => updateValue("secondGuarantorOccupationAddress", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-slate-900" />
+              </label>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5 shadow-sm">
           <div className="grid gap-3 text-sm text-slate-700 md:grid-cols-2">
@@ -457,7 +514,7 @@ function FileUpload({
       <div className="mt-2 flex min-h-[82px] flex-col items-center justify-center rounded-2xl border border-dashed border-blue-300 bg-blue-50 p-4 text-center transition hover:border-blue-400 hover:bg-blue-100/60">
         <input
           type="file"
-          accept="image/jpeg,image/png,image/webp,application/pdf"
+          accept="image/jpeg,image/png,image/webp"
           onChange={(event) => onChange(event.target.files?.[0] ?? null)}
           className="w-full text-slate-700 file:mr-3 file:rounded-full file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700"
         />
