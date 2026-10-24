@@ -55,6 +55,22 @@ interface OrderDetail {
     name: string;
   };
   status: OrderStatus;
+  address?: string | null;
+  deliveryAddress?: {
+    recipientName?: string;
+    recipientPhone?: string;
+    governorate?: string;
+    city?: string;
+    street?: string;
+    buildingNumber?: string;
+    floor?: string;
+    apartment?: string;
+    instructions?: string;
+  } | null;
+  paymentMethod?: "cash" | "instapay" | null;
+  paymentStatus?: string | null;
+  senderIdentifier?: string | null;
+  hasPaymentProof?: boolean;
   items: OrderItemWithMotorcycle[];
   totalAmount: number;
   discount: number;
@@ -339,15 +355,45 @@ export default function OrderDetailPage() {
                       <dd className="mt-1 text-sm text-gray-900">{order.customer.email}</dd>
                     </div>
                   )}
-                  {order.customer.defaultAddress && (
+                  {order.deliveryAddress ? (
                     <div className="sm:col-span-2">
                       <dt className="text-sm font-medium text-gray-500">Delivery Address</dt>
                       <dd className="mt-1 text-sm text-gray-900">
-                        {order.customer.defaultAddress.addressLine}
-                        {order.customer.defaultAddress.city && (
-                          <span>, {order.customer.defaultAddress.city}</span>
-                        )}
+                        {[
+                          order.deliveryAddress.recipientName,
+                          order.deliveryAddress.recipientPhone,
+                          order.deliveryAddress.governorate,
+                          order.deliveryAddress.city,
+                          order.deliveryAddress.street,
+                          order.deliveryAddress.buildingNumber,
+                          order.deliveryAddress.floor,
+                          order.deliveryAddress.apartment,
+                          order.deliveryAddress.instructions,
+                        ].filter(Boolean).join(" · ")}
                       </dd>
+                    </div>
+                  ) : order.address ? (
+                    <div className="sm:col-span-2">
+                      <dt className="text-sm font-medium text-gray-500">Delivery Address</dt>
+                      <dd className="mt-1 text-sm text-gray-900">{order.address}</dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Payment Method</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {order.paymentMethod === "instapay" ? "InstaPay transfer" : order.paymentMethod === "cash" ? "Cash on delivery" : "Not specified"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Payment Status</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {order.paymentStatus === "pending_verification" ? "Awaiting verification" : order.paymentStatus === "unpaid" ? "Unpaid" : order.paymentStatus === "paid" ? "Paid" : "Not specified"}
+                    </dd>
+                  </div>
+                  {order.paymentMethod === "instapay" && order.senderIdentifier && (
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Sender account / wallet</dt>
+                      <dd className="mt-1 text-sm text-gray-900" dir="auto">{order.senderIdentifier}</dd>
                     </div>
                   )}
                   <div>

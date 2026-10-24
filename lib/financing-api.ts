@@ -5,6 +5,7 @@ export interface InstallmentDuration { id: string; months: number; }
 export interface StoreSettings {
   instagramUrl?: string | null;
   contactPhone?: string | null;
+  instaPayAccount?: string | null;
   defaultDepositAmount?: number | null;
   defaultDepositPercentage?: number | null;
 }

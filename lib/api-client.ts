@@ -118,6 +118,9 @@ export const apiClient = {
       body: body === undefined || typeof body === "string" ? body : JSON.stringify(body),
     }).then((response) => response.data as T),
 
+  postForm: <T>(endpoint: string, body: FormData, options?: RequestInit) =>
+    fetchApi<T>(endpoint, { ...options, method: "POST", body }).then((response) => response.data as T),
+
   patch: <T>(endpoint: string, body?: unknown, options?: RequestInit) =>
     fetchApi<T>(endpoint, {
       ...options,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,8 +18,20 @@ interface CartItem {
   image?: string;
 }
 
-type PaymentMethod = "instapay" | "cash";
+type PaymentMethod = "instapay" | "cash" | "";
 type OrderType = "purchase" | "installment";
+type DeliveryAddress = {
+  governorate: string;
+  city: string;
+  street: string;
+  buildingNumber: string;
+  floor: string;
+  apartment: string;
+  instructions: string;
+};
+
+const MAX_PAYMENT_PROOF_SIZE = 5 * 1024 * 1024;
+const SUPPORTED_PAYMENT_PROOF_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export default function CheckoutPage() {
   const locale = useLocale();
@@ -33,8 +45,9 @@ export default function CheckoutPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [storeSettings, setStoreSettings] = useState<{ contactPhone?: string | null; instagramUrl?: string | null; instaPayAccount?: string | null } | null>(null);
   const [customer, setCustomer] = useState<{ id: string; name: string; phone: string; email?: string } | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("instapay");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [step, setStep] = useState<"review" | "payment" | "confirmed">("review");
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -44,6 +57,20 @@ export default function CheckoutPage() {
   // Name & phone for guest/quick checkout
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState<DeliveryAddress>({
+    governorate: "",
+    city: "",
+    street: "",
+    buildingNumber: "",
+    floor: "",
+    apartment: "",
+    instructions: "",
+  });
+  const [senderIdentifier, setSenderIdentifier] = useState("");
+  const [senderName, setSenderName] = useState("");
+  const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const uploadedProof = useRef<{ file: File; paymentProofId: string } | null>(null);
+  const submissionInProgress = useRef(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -63,11 +90,29 @@ export default function CheckoutPage() {
 
       if (isAuthenticated && user?.id) {
         try {
-          const cust = await apiClient.get<{ id: string; name: string; phone: string; email?: string }>(`/customers/${user.id}`);
+          const cust = await apiClient.get<{
+            id: string;
+            name: string;
+            phone: string;
+            email?: string;
+            addresses?: Array<{ addressLine: string; city?: string | null; region?: string | null; notes?: string | null; isDefault: boolean }>;
+          }>(`/customers/${user.id}`);
           setCustomer(cust);
           setContactName(cust.name);
           setContactPhone(cust.phone);
-        } catch { /* ignore */ }
+          const defaultAddress = cust.addresses?.find((address) => address.isDefault);
+          if (defaultAddress) {
+            setDeliveryAddress((current) => ({
+              ...current,
+              governorate: defaultAddress.region ?? "",
+              city: defaultAddress.city ?? "",
+              street: defaultAddress.addressLine,
+              instructions: defaultAddress.notes ?? "",
+            }));
+          }
+        } catch {
+          setCustomer(null);
+        }
       }
     } finally {
       setIsLoading(false);
@@ -83,9 +128,58 @@ export default function CheckoutPage() {
   };
 
   const handleConfirmOrder = () => {
+    if (submissionInProgress.current) return;
+    if (!paymentMethod) {
+      setError(isAr ? "يرجى اختيار طريقة الدفع." : "Select a payment method.");
+      return;
+    }
+    if (!contactName.trim() || !contactPhone.trim()) {
+      setError(isAr ? "يرجى إدخال اسم المستلم ورقم هاتفه." : "Enter the recipient name and phone number.");
+      setStep("review");
+      return;
+    }
+    if (!deliveryAddress.governorate.trim() || !deliveryAddress.city.trim() || !deliveryAddress.street.trim()) {
+      setError(isAr ? "يرجى استكمال المحافظة والمدينة والشارع." : "Complete the governorate, city, and street.");
+      setStep("review");
+      return;
+    }
+    if (paymentMethod === "instapay") {
+      if (!storeSettings?.instaPayAccount?.trim()) {
+        setError(isAr ? "الدفع عبر InstaPay غير متاح حالياً. يرجى اختيار الدفع عند الاستلام." : "InstaPay is not configured. Please choose cash on delivery.");
+        return;
+      }
+      if (!paymentProof) {
+        setError(isAr ? "يرجى إرفاق صورة إثبات التحويل." : "Attach the transfer proof image.");
+        return;
+      }
+      if (!SUPPORTED_PAYMENT_PROOF_TYPES.includes(paymentProof.type) || paymentProof.size > MAX_PAYMENT_PROOF_SIZE) {
+        setError(isAr ? "يجب أن تكون الصورة بصيغة JPEG أو PNG أو WebP وألا يتجاوز حجمها 5 ميجابايت." : "Use a JPEG, PNG, or WebP image no larger than 5 MB.");
+        return;
+      }
+      if (!senderIdentifier.trim()) {
+        setError(isAr ? "يرجى إدخال رقم الحساب أو المحفظة المحوّل منها." : "Enter the sender account or wallet identifier.");
+        return;
+      }
+    }
+
+    submissionInProgress.current = true;
     startTransition(async () => {
       setError(null);
       try {
+        let paymentProofId: string | undefined;
+        if (paymentMethod === "instapay" && paymentProof) {
+          if (uploadedProof.current?.file === paymentProof) {
+            paymentProofId = uploadedProof.current.paymentProofId;
+          } else {
+            setIsUploadingProof(true);
+            const form = new FormData();
+            form.append("file", paymentProof);
+            const upload = await apiClient.postForm<{ paymentProofId: string }>("/upload/order-payment-proof", form);
+            paymentProofId = upload.paymentProofId;
+            uploadedProof.current = { file: paymentProof, paymentProofId };
+          }
+        }
+
         let order: { id: string };
         order = await apiClient.post<{ id: string }>("/orders", {
           customerId: customer!.id,
@@ -94,12 +188,32 @@ export default function CheckoutPage() {
           isDraft: false,
           paymentMethod,
           orderType,
+          deliveryAddress: {
+            recipientName: contactName.trim(),
+            recipientPhone: contactPhone.trim(),
+            governorate: deliveryAddress.governorate.trim(),
+            city: deliveryAddress.city.trim(),
+            street: deliveryAddress.street.trim(),
+            buildingNumber: deliveryAddress.buildingNumber.trim(),
+            floor: deliveryAddress.floor.trim(),
+            apartment: deliveryAddress.apartment.trim(),
+            instructions: deliveryAddress.instructions.trim(),
+          },
+          ...(paymentMethod === "instapay" ? {
+            paymentProofId,
+            senderIdentifier: senderIdentifier.trim(),
+            ...(senderName.trim() ? { senderName: senderName.trim() } : {}),
+          } : {}),
         });
         localStorage.removeItem("cart");
+        uploadedProof.current = null;
         setOrderId(order.id);
         setStep("confirmed");
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : (isAr ? "حدث خطأ أثناء تأكيد الطلب" : "Error confirming order"));
+        setError(isAr ? "تعذر إتمام الطلب. تحقق من البيانات وحاول مرة أخرى." : (err instanceof ApiError ? err.message : "Error confirming order"));
+      } finally {
+        setIsUploadingProof(false);
+        submissionInProgress.current = false;
       }
     });
   };
@@ -165,7 +279,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const instaPayNumber = storeSettings?.contactPhone ?? "01xxxxxxxxxx";
+  const instaPayNumber = storeSettings?.instaPayAccount?.trim() ?? "";
 
   return (
     <div className="min-h-screen bg-[#f7f7f7]" dir={isAr ? "rtl" : "ltr"}>
@@ -255,6 +369,43 @@ export default function CheckoutPage() {
                         dir="ltr"
                       />
                     </div>
+                    <div>
+                      <h3 className="text-sm font-black text-zinc-800 pt-2">{isAr ? "عنوان التسليم" : "Delivery Address"}</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {([
+                        ["governorate", isAr ? "المحافظة" : "Governorate", true],
+                        ["city", isAr ? "المدينة أو المنطقة" : "City / area", true],
+                        ["street", isAr ? "الشارع" : "Street", true],
+                        ["buildingNumber", isAr ? "رقم المبنى" : "Building number", false],
+                        ["floor", isAr ? "الدور" : "Floor", false],
+                        ["apartment", isAr ? "الشقة" : "Apartment", false],
+                      ] as const).map(([field, label, required]) => (
+                        <div key={field}>
+                          <label htmlFor={`delivery-${field}`} className="block text-xs font-bold text-zinc-500 mb-1">{label}</label>
+                          <input
+                            id={`delivery-${field}`}
+                            type="text"
+                            value={deliveryAddress[field]}
+                            onChange={(event) => setDeliveryAddress((current) => ({ ...current, [field]: event.target.value }))}
+                            required={required}
+                            maxLength={field === "street" ? 200 : 100}
+                            className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:border-blue-400 transition"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <label htmlFor="delivery-instructions" className="block text-xs font-bold text-zinc-500 mb-1">{isAr ? "تعليمات إضافية للتوصيل" : "Additional delivery instructions"}</label>
+                      <textarea
+                        id="delivery-instructions"
+                        value={deliveryAddress.instructions}
+                        onChange={(event) => setDeliveryAddress((current) => ({ ...current, instructions: event.target.value }))}
+                        maxLength={1000}
+                        rows={3}
+                        className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:border-blue-400 transition"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -265,7 +416,7 @@ export default function CheckoutPage() {
                 )}
 
                 <button
-                  disabled={cartItems.length === 0 || !contactName || !contactPhone}
+                  disabled={cartItems.length === 0 || !contactName.trim() || !contactPhone.trim() || !deliveryAddress.governorate.trim() || !deliveryAddress.city.trim() || !deliveryAddress.street.trim()}
                   onClick={() => setStep("payment")}
                   className="w-full rounded-full bg-blue-600 py-4 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50 transition shadow-md"
                 >
@@ -282,21 +433,9 @@ export default function CheckoutPage() {
                   <h2 className="text-base font-black text-zinc-900 mb-4">{isAr ? "طريقة الدفع" : "Payment Method"}</h2>
                   <div className="space-y-3">
                     
-                    {/* InstaPay */}
-                    <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition ${paymentMethod === "instapay" ? "border-blue-600 bg-blue-50" : "border-zinc-200 hover:border-zinc-300"}`}>
-                      <input type="radio" name="payment" value="instapay" checked={paymentMethod === "instapay"} onChange={() => setPaymentMethod("instapay")} className="mt-1 accent-blue-600" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CreditCard size={18} className="text-blue-600" />
-                          <span className="font-black text-zinc-900 text-sm">{isAr ? "إنستاباي (تحويل فوري)" : "InstaPay (Instant Transfer)"}</span>
-                        </div>
-                        <p className="text-xs text-zinc-500">{isAr ? "حوّل المبلغ إلى حسابنا على إنستاباي وأرسل صورة الإيصال" : "Transfer the amount to our InstaPay account and send the receipt"}</p>
-                      </div>
-                    </label>
-
                     {/* Cash on Delivery */}
                     <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition ${paymentMethod === "cash" ? "border-blue-600 bg-blue-50" : "border-zinc-200 hover:border-zinc-300"}`}>
-                      <input type="radio" name="payment" value="cash" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} className="mt-1 accent-blue-600" />
+                      <input type="radio" name="payment" value="cash" checked={paymentMethod === "cash"} onChange={() => { setPaymentMethod("cash"); setError(null); }} disabled={isPending || isUploadingProof} className="mt-1 accent-blue-600" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <Truck size={18} className="text-blue-600" />
@@ -305,13 +444,25 @@ export default function CheckoutPage() {
                         <p className="text-xs text-zinc-500">{isAr ? "ادفع نقداً عند استلام الموتوسيكل" : "Pay in cash when you receive your motorcycle"}</p>
                       </div>
                     </label>
+
+                    {/* InstaPay */}
+                    <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition ${paymentMethod === "instapay" ? "border-blue-600 bg-blue-50" : "border-zinc-200 hover:border-zinc-300"}`}>
+                      <input type="radio" name="payment" value="instapay" checked={paymentMethod === "instapay"} onChange={() => { setPaymentMethod("instapay"); setError(null); }} disabled={isPending || isUploadingProof} className="mt-1 accent-blue-600" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CreditCard size={18} className="text-blue-600" />
+                          <span className="font-black text-zinc-900 text-sm">{isAr ? "التحويل عبر InstaPay" : "Transfer via InstaPay"}</span>
+                        </div>
+                        <p className="text-xs text-zinc-500">{isAr ? "حوّل إجمالي الطلب إلى معرّف InstaPay ثم أرفق صورة الإيصال." : "Transfer the order total to the InstaPay identifier and attach the receipt."}</p>
+                      </div>
+                    </label>
                   </div>
                 </div>
 
                 {/* InstaPay Instructions */}
                 {paymentMethod === "instapay" && (
                   <div className="bg-white rounded-xl shadow-sm border border-zinc-100 p-5">
-                    <h2 className="text-base font-black text-zinc-900 mb-4">{isAr ? "خطوات الدفع بإنستاباي" : "InstaPay Steps"}</h2>
+                    <h2 className="text-base font-black text-zinc-900 mb-4">{isAr ? "تعليمات التحويل عبر InstaPay" : "InstaPay Transfer Instructions"}</h2>
                     <ol className="space-y-4">
                       <li className="flex items-start gap-3">
                         <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center">١</span>
@@ -320,24 +471,93 @@ export default function CheckoutPage() {
                       <li className="flex items-start gap-3">
                         <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center">٢</span>
                         <div className="pt-1">
-                          <p className="text-sm text-zinc-700">{isAr ? "حوّل المبلغ إلى الرقم:" : "Transfer the amount to:"}</p>
-                          <div className="mt-2 flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-                            <span className="font-mono font-black text-zinc-900 text-sm flex-1" dir="ltr">{instaPayNumber}</span>
-                            <button
-                              onClick={() => handleCopy(instaPayNumber)}
-                              className="text-blue-600 hover:text-blue-800 transition shrink-0"
-                              title="Copy"
-                            >
-                              {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
-                            </button>
-                          </div>
+                          <p className="text-sm text-zinc-700">
+                            {isAr
+                              ? `حوّل إجمالي الطلب ${totalAmount.toLocaleString("ar-EG")} ج.م إلى معرّف InstaPay التالي:`
+                              : `Transfer the order total of ${totalAmount.toLocaleString("en-EG")} EGP to this InstaPay identifier:`}
+                          </p>
+                          {instaPayNumber ? (
+                            <div className="mt-2 flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+                              <span className="font-mono font-black text-zinc-900 text-sm flex-1" dir="auto">{instaPayNumber}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(instaPayNumber)}
+                                className="text-blue-600 hover:text-blue-800 transition shrink-0"
+                                title={isAr ? "نسخ المعرّف" : "Copy identifier"}
+                              >
+                                {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
+                              </button>
+                            </div>
+                          ) : (
+                            <p role="alert" className="mt-2 text-sm text-red-700">
+                              {isAr ? "معرّف InstaPay غير متاح حالياً. يرجى اختيار الدفع عند الاستلام." : "The InstaPay identifier is unavailable. Please choose cash on delivery."}
+                            </p>
+                          )}
                         </div>
                       </li>
                       <li className="flex items-start gap-3">
                         <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center">٣</span>
-                        <p className="text-sm text-zinc-700 pt-1">{isAr ? "احفظ صورة الإيصال واضغط على تأكيد الطلب — سيتواصل معك فريقنا للتحقق." : "Save the receipt screenshot and confirm your order — our team will follow up."}</p>
+                        <p className="text-sm text-zinc-700 pt-1">{isAr ? "بعد التحويل أرفق صورة الإثبات وأدخل بيانات الحساب المحوّل منه؛ ستتم مراجعة التحويل قبل تأكيد استلامه." : "After transferring, attach the proof and provide the sender account details. The transfer will be reviewed before it is confirmed."}</p>
                       </li>
                     </ol>
+                    <div className="mt-5 space-y-3">
+                      <div>
+                        <label htmlFor="payment-proof" className="block text-xs font-bold text-zinc-600 mb-1">{isAr ? "صورة إثبات التحويل" : "Transfer receipt image"}</label>
+                        <input
+                          id="payment-proof"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          required
+                          disabled={isPending || isUploadingProof}
+                          onChange={(event) => {
+                            const selected = event.target.files?.[0] ?? null;
+                            setPaymentProof(null);
+                            uploadedProof.current = null;
+                            if (selected && !SUPPORTED_PAYMENT_PROOF_TYPES.includes(selected.type)) {
+                              setError(isAr ? "يرجى اختيار صورة بصيغة JPEG أو PNG أو WebP." : "Choose a JPEG, PNG, or WebP image.");
+                              event.target.value = "";
+                            } else if (selected && selected.size > MAX_PAYMENT_PROOF_SIZE) {
+                              setError(isAr ? "يجب ألا يتجاوز حجم الصورة 5 ميجابايت." : "The image must be no larger than 5 MB.");
+                              event.target.value = "";
+                            } else {
+                              setError(null);
+                              setPaymentProof(selected);
+                            }
+                          }}
+                          className="block w-full text-sm text-zinc-700 file:me-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-bold file:text-blue-700"
+                        />
+                        <p className="mt-1 text-xs text-zinc-400">{isAr ? "JPEG أو PNG أو WebP، بحد أقصى 5 ميجابايت." : "JPEG, PNG, or WebP; maximum 5 MB."}</p>
+                        {paymentProof && <p className="mt-1 text-xs text-zinc-600">{paymentProof.name}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor="sender-identifier" className="block text-xs font-bold text-zinc-600 mb-1">{isAr ? "رقم الحساب أو المحفظة المحوّل منها" : "Sender InstaPay identifier or account number"}</label>
+                        <input
+                          id="sender-identifier"
+                          type="text"
+                          value={senderIdentifier}
+                          onChange={(event) => setSenderIdentifier(event.target.value)}
+                          maxLength={120}
+                          autoComplete="off"
+                          dir="auto"
+                          required
+                          disabled={isPending || isUploadingProof}
+                          className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:border-blue-400 transition"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="sender-name" className="block text-xs font-bold text-zinc-600 mb-1">{isAr ? "اسم صاحب التحويل (اختياري)" : "Transfer sender name (optional)"}</label>
+                        <input
+                          id="sender-name"
+                          type="text"
+                          value={senderName}
+                          onChange={(event) => setSenderName(event.target.value)}
+                          maxLength={200}
+                          autoComplete="name"
+                          disabled={isPending || isUploadingProof}
+                          className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm text-zinc-900 focus:outline-none focus:border-blue-400 transition"
+                        />
+                      </div>
+                    </div>
                     {storeSettings?.contactPhone && (
                       <a
                         href={`https://wa.me/${storeSettings.contactPhone.replace(/\D/g, "")}`}
@@ -373,17 +593,22 @@ export default function CheckoutPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setStep("review")}
+                    disabled={isPending || isUploadingProof}
                     className="flex-1 rounded-full border-2 border-zinc-300 py-3.5 text-sm font-bold text-zinc-700 hover:border-zinc-500 transition"
                   >
                     {isAr ? "رجوع" : "Back"}
                   </button>
                   <button
                     onClick={handleConfirmOrder}
-                    disabled={isPending}
+                    disabled={isPending || isUploadingProof || (paymentMethod === "instapay" && !instaPayNumber)}
                     className="flex-1 rounded-full bg-blue-600 py-3.5 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-60 transition shadow-md flex items-center justify-center gap-2"
                   >
-                    {isPending ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                    {isPending ? (isAr ? "جاري التأكيد..." : "Confirming...") : (isAr ? "تأكيد الطلب" : "Confirm Order")}
+                    {isPending || isUploadingProof ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                    {isUploadingProof
+                      ? (isAr ? "جاري رفع إثبات التحويل..." : "Uploading proof...")
+                      : isPending
+                        ? (isAr ? "جاري التأكيد..." : "Confirming...")
+                        : (isAr ? "تأكيد الطلب" : "Confirm Order")}
                   </button>
                 </div>
               </>
