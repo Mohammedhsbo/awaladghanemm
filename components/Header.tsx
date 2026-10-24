@@ -87,7 +87,7 @@ export function Header() {
             <ul className="flex items-center gap-6 lg:gap-10">
               <li><Link href="/" className="text-base font-bold text-white transition hover:text-white/80">{tCommon("home")}</Link></li>
               <li><Link href="/motorcycles" className="text-base font-bold text-white transition hover:text-white/80">{tNav("motorcycles")}</Link></li>
-              <li><Link href="/brands" className="text-base font-bold text-white transition hover:text-white/80">{tNav("brands")}</Link></li>
+              <li><Link href="/installment" className="text-base font-bold text-white transition hover:text-white/80">{tNav("installmentPage")}</Link></li>
               <li><Link href="/contact" className="text-base font-bold text-white transition hover:text-white/80">{tNav("contact")}</Link></li>
             </ul>
           </nav>
@@ -207,7 +207,7 @@ export function Header() {
           <div className="mt-4 grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 shadow-lg md:hidden">
             <Link onClick={() => setOpen(false)} href="/" className="rounded-md px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50">{tCommon("home")}</Link>
             <Link onClick={() => setOpen(false)} href="/motorcycles" className="rounded-md px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50">{tNav("motorcycles")}</Link>
-            <Link onClick={() => setOpen(false)} href="/branches" className="rounded-md px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50">{tNav("branches")}</Link>
+            <Link onClick={() => setOpen(false)} href="/installment" className="rounded-md px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50">{tNav("installmentPage")}</Link>
             <Link onClick={() => setOpen(false)} href="/contact" className="rounded-md px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50">{tNav("contact")}</Link>
             
             <div className="border-t pt-2 mt-1">
