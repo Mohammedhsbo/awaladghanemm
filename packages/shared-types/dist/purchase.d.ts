@@ -4,7 +4,7 @@ export declare const purchaseItemSchema: z.ZodObject<{
     purchaseId: z.ZodString;
     motorcycleId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     model: z.ZodString;
-    vin: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    vin: z.ZodNullable<z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>>;
     quantity: z.ZodNumber;
     unitCost: z.ZodNumber;
     createdAt: z.ZodDate;
@@ -45,7 +45,7 @@ export declare const purchaseSchema: z.ZodObject<{
         purchaseId: z.ZodString;
         motorcycleId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
         model: z.ZodString;
-        vin: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+        vin: z.ZodNullable<z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>>;
         quantity: z.ZodNumber;
         unitCost: z.ZodNumber;
         createdAt: z.ZodDate;
@@ -116,7 +116,7 @@ export declare const purchaseSchema: z.ZodObject<{
 export type Purchase = z.infer<typeof purchaseSchema>;
 export declare const createPurchaseItemRequestSchema: z.ZodObject<{
     model: z.ZodString;
-    vin: z.ZodOptional<z.ZodString>;
+    vin: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
     quantity: z.ZodNumber;
     unitCost: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
@@ -137,7 +137,7 @@ export declare const createPurchaseSchema: z.ZodObject<{
     notes: z.ZodOptional<z.ZodString>;
     items: z.ZodArray<z.ZodObject<{
         model: z.ZodString;
-        vin: z.ZodOptional<z.ZodString>;
+        vin: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
         quantity: z.ZodNumber;
         unitCost: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
@@ -178,7 +178,7 @@ export declare const updatePurchaseSchema: z.ZodObject<{
     notes: z.ZodOptional<z.ZodString>;
     items: z.ZodOptional<z.ZodArray<z.ZodObject<{
         model: z.ZodString;
-        vin: z.ZodOptional<z.ZodString>;
+        vin: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
         quantity: z.ZodNumber;
         unitCost: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {

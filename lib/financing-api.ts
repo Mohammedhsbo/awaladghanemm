@@ -1,6 +1,6 @@
 import { API_BASE, apiClient } from "./api-client";
 
-export interface FinancingCompany { id: string; name: string; annualInterestRate: number; }
+export interface FinancingCompany { id: string; name: string; annualInterestRate: number; administrativeFees?: number; }
 export interface InstallmentDuration { id: string; months: number; }
 export interface StoreSettings {
   instagramUrl?: string | null;
