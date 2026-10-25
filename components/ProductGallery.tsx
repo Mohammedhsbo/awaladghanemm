@@ -22,13 +22,13 @@ export function ProductGallery({ images, title }: ProductGalleryProps) {
         <button onClick={() => setFullscreen(true)} className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-zinc-100 text-left">
           <MotorcycleVisual src={activeImage} alt={title} priority />
         </button>
-        <div className="grid grid-cols-4 gap-3">
-          {(images.length ? images : [""]).slice(0, 8).map((image, index) => (
+        {images.length > 1 && <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+          {images.map((image, index) => (
             <button key={`${image}-${index}`} onClick={() => setActive(index)} className={`relative aspect-[4/3] overflow-hidden rounded-md border ${active === index ? "border-red-700" : "border-zinc-200"}`}>
               <MotorcycleVisual src={image || undefined} alt={`${title} thumbnail ${index + 1}`} />
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {fullscreen && (

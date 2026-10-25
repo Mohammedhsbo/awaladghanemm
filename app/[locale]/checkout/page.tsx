@@ -10,7 +10,6 @@ import { CheckCircle, Copy, CreditCard, Truck, Phone, AlertCircle, ChevronRight,
 
 interface CartItem {
   id: string;
-  vin: string;
   model: string;
   year: number;
   price: number;

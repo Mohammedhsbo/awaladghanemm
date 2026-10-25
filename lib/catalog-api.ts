@@ -29,6 +29,8 @@ export interface Branch {
 export interface Motorcycle {
   id: string;
   vin: string;
+  engineNumber?: string | null;
+  fuelType?: "PETROL" | "ELECTRIC" | string | null;
   model: string;
   year: number;
   color?: string | null;
@@ -37,7 +39,7 @@ export interface Motorcycle {
   descriptionEn?: string | null;
   price: number;
   status: string;
-  condition?: "NEW" | "IMPORTED" | string | null;
+  condition?: "NEW" | "USED" | "IMPORTED" | string | null;
   images: string[] | string | null;
   reservationDepositAmount?: number | null;
   reservationDepositPercentage?: number | null;
@@ -134,10 +136,20 @@ export function conditionLabel(condition: string | null | undefined, locale: str
   if (normalized === "NEW" || normalized === "ZERO") {
     return locale === "ar" ? "زيرو" : "Zero";
   }
+  if (normalized === "USED") {
+    return locale === "ar" ? "مستعمل" : "Used";
+  }
   if (normalized === "IMPORTED" || normalized === "IMPORT") {
     return locale === "ar" ? "استيراد" : "Imported";
   }
-  return locale === "ar" ? "زيرو" : "Zero";
+  return locale === "ar" ? "غير محدد" : "Not specified";
+}
+
+export function fuelTypeLabel(fuelType: string | null | undefined, locale: string) {
+  const normalized = (fuelType ?? "").trim().toUpperCase();
+  if (normalized === "PETROL") return locale === "ar" ? "بنزين" : "Petrol";
+  if (normalized === "ELECTRIC") return locale === "ar" ? "كهرباء" : "Electric";
+  return null;
 }
 
 export function formatCurrency(value: number) {

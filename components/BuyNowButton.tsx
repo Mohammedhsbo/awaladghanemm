@@ -6,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface Motorcycle {
   id: string;
-  vin: string;
   model: string;
   year: number;
   price: number;
@@ -40,7 +39,6 @@ export function BuyNowButton({ motorcycle }: Props) {
 
     const cartItem = {
       id: motorcycle.id,
-      vin: motorcycle.vin,
       model: motorcycle.model,
       year: motorcycle.year,
       price: motorcycle.price,

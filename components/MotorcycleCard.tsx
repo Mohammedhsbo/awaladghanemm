@@ -1,6 +1,6 @@
 import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
-import { conditionLabel, displayName, formatCurrency, normalizeImages, type Motorcycle } from "@/lib/catalog-api";
+import { conditionLabel, displayName, formatCurrency, fuelTypeLabel, normalizeImages, type Motorcycle } from "@/lib/catalog-api";
 import { Gauge, MapPin, ShieldCheck } from "lucide-react";
 import { MotorcycleVisual } from "./MotorcycleVisual";
 
@@ -14,6 +14,7 @@ export function MotorcycleCard({ motorcycle, locale, priority }: MotorcycleCardP
   const t = useTranslations("home");
   const images = normalizeImages(motorcycle.images);
   const title = `${displayName(motorcycle.brand, locale)} ${motorcycle.model}`;
+  const fuelType = fuelTypeLabel(motorcycle.fuelType, locale);
 
   return (
     <article className="group overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
@@ -32,10 +33,16 @@ export function MotorcycleCard({ motorcycle, locale, priority }: MotorcycleCardP
             {motorcycle.model}
           </Link>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-xs text-zinc-600">
-          <span className="flex items-center gap-1"><Gauge size={14} />{motorcycle.engineSize ?? t("engine")}</span>
-          <span>{motorcycle.year}</span>
-          <span>{motorcycle.color ?? t("color")}</span>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-zinc-600">
+              <span><span className="font-semibold text-zinc-800">{t("cardBrandLabel")}: </span>{displayName(motorcycle.brand, locale)}</span>
+          <span><span className="font-semibold text-zinc-800">{t("modelLabel")}: </span>{motorcycle.model}</span>
+          <span><span className="font-semibold text-zinc-800">{t("conditionLabel")}: </span>{conditionLabel(motorcycle.condition, locale)}</span>
+          {fuelType && <span><span className="font-semibold text-zinc-800">{t("fuelTypeLabel")}: </span>{fuelType}</span>}
+          {motorcycle.engineSize && (
+            <span className="flex items-center gap-1"><Gauge size={14} /><span><span className="font-semibold text-zinc-800">{t("engineSizeLabel")}: </span>{motorcycle.engineSize}</span></span>
+          )}
+          <span><span className="font-semibold text-zinc-800">{t("yearLabel")}: </span>{motorcycle.year}</span>
+          {motorcycle.color && <span><span className="font-semibold text-zinc-800">{t("colorLabel")}: </span>{motorcycle.color}</span>}
         </div>
         <div className="flex items-end justify-between gap-3 border-t border-zinc-100 pt-4">
           <div>

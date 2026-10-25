@@ -4,8 +4,8 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { ProductGallery } from "@/components/ProductGallery";
-import { conditionLabel, displayName, formatCurrency, getMotorcycle, normalizeImages, publicVin } from "@/lib/catalog-api";
-import { Calendar, Gauge, MapPin, Palette, ShieldCheck } from "lucide-react";
+import { conditionLabel, displayName, formatCurrency, fuelTypeLabel, getMotorcycle, normalizeImages } from "@/lib/catalog-api";
+import { Bike, Calendar, Fuel, Gauge, MapPin, Palette, ShieldCheck, Tag } from "lucide-react";
 import { BuyNowButton } from "@/components/BuyNowButton";
 
 interface PageProps {
@@ -47,6 +47,7 @@ export default async function MotorcycleDetailsPage({ params }: PageProps) {
   const title = `${displayName(motorcycle.brand, locale)} ${motorcycle.model}`;
   const images = normalizeImages(motorcycle.images);
   const condition = conditionLabel(motorcycle.condition, locale);
+  const fuelType = fuelTypeLabel(motorcycle.fuelType, locale);
   const description = locale === "ar" ? motorcycle.descriptionAr || motorcycle.descriptionEn : motorcycle.descriptionEn || motorcycle.descriptionAr;
   const jsonLd = {
     "@context": "https://schema.org",
@@ -75,8 +76,7 @@ export default async function MotorcycleDetailsPage({ params }: PageProps) {
               <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-6xl">{motorcycle.model}</h1>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-zinc-300">
                 <span>{motorcycle.year}</span>
-                <span>·</span>
-                <span>{motorcycle.engineSize ?? t("engineAvailable")}</span>
+                {motorcycle.engineSize && <><span>·</span><span>{motorcycle.engineSize}</span></>}
                 <span>·</span>
                 <span>{displayName(motorcycle.category, locale)}</span>
                 <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">{condition}</span>
@@ -100,19 +100,19 @@ export default async function MotorcycleDetailsPage({ params }: PageProps) {
               <span className="text-sm font-bold">{t("inStock")}</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Spec icon={<Gauge size={18} />} label={t("engine")} value={motorcycle.engineSize ?? t("availableOnRequest")} />
+              <Spec icon={<ShieldCheck size={18} />} label={t("condition")} value={condition} />
+              <Spec icon={<Tag size={18} />} label={t("brand")} value={displayName(motorcycle.brand, locale)} />
+              <Spec icon={<Bike size={18} />} label={t("model")} value={motorcycle.model} />
+              {fuelType && <Spec icon={<Fuel size={18} />} label={t("fuelType")} value={fuelType} />}
+              {motorcycle.engineSize && <Spec icon={<Gauge size={18} />} label={t("engineSize")} value={motorcycle.engineSize} />}
               <Spec icon={<Calendar size={18} />} label={t("year")} value={String(motorcycle.year)} />
-              <Spec icon={<Palette size={18} />} label={t("color")} value={motorcycle.color ?? t("availableOnRequest")} />
+              <Spec icon={<Palette size={18} />} label={t("color")} value={motorcycle.color || t("notSpecified")} />
               <Spec icon={<MapPin size={18} />} label={t("branch")} value={displayName(motorcycle.branch, locale)} />
-            </div>
-            <div className="mt-5 rounded-md bg-zinc-50 p-4 text-sm text-zinc-600">
-              {t("vinReference")} <span className="font-mono font-bold text-zinc-950">{publicVin(motorcycle.vin)}</span>
             </div>
             <div className="mt-6">
               <BuyNowButton
                 motorcycle={{
                   id: motorcycle.id,
-                  vin: motorcycle.vin,
                   model: motorcycle.model,
                   year: motorcycle.year,
                   price: motorcycle.price,
