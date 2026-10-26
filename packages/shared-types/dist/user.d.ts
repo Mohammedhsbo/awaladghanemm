@@ -38,6 +38,7 @@ export declare const updateUserRequestSchema: z.ZodEffects<z.ZodObject<{
     branchId: z.ZodOptional<z.ZodString>;
     isActive: z.ZodOptional<z.ZodBoolean>;
     lang: z.ZodOptional<z.ZodNativeEnum<typeof Language>>;
+    salary: z.ZodEffects<z.ZodOptional<z.ZodNullable<z.ZodNumber>>, number | null | undefined, unknown>;
 }, "strict", z.ZodTypeAny, {
     name?: string | undefined;
     email?: string | undefined;
@@ -47,6 +48,7 @@ export declare const updateUserRequestSchema: z.ZodEffects<z.ZodObject<{
     branchId?: string | undefined;
     lang?: Language | undefined;
     isActive?: boolean | undefined;
+    salary?: number | null | undefined;
 }, {
     name?: string | undefined;
     email?: string | undefined;
@@ -56,6 +58,7 @@ export declare const updateUserRequestSchema: z.ZodEffects<z.ZodObject<{
     branchId?: string | undefined;
     lang?: Language | undefined;
     isActive?: boolean | undefined;
+    salary?: unknown;
 }>, {
     name?: string | undefined;
     email?: string | undefined;
@@ -65,6 +68,7 @@ export declare const updateUserRequestSchema: z.ZodEffects<z.ZodObject<{
     branchId?: string | undefined;
     lang?: Language | undefined;
     isActive?: boolean | undefined;
+    salary?: number | null | undefined;
 }, {
     name?: string | undefined;
     email?: string | undefined;
@@ -74,6 +78,7 @@ export declare const updateUserRequestSchema: z.ZodEffects<z.ZodObject<{
     branchId?: string | undefined;
     lang?: Language | undefined;
     isActive?: boolean | undefined;
+    salary?: unknown;
 }>;
 export declare const selfUpdateUserRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -154,6 +159,7 @@ export interface Branch {
     address?: string | null;
     phone?: string | null;
     isActive: boolean;
+    salary?: number | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -173,6 +179,7 @@ export interface User {
     roleId: string;
     lang: Language;
     isActive: boolean;
+    salary?: number | null;
     lastLoginAt?: string | null;
     createdAt: string;
     updatedAt: string;

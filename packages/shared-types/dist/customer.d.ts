@@ -57,7 +57,7 @@ export declare const registerCustomerSchema: z.ZodObject<{
     phone: z.ZodEffects<z.ZodString, string, string>;
     email: z.ZodString;
     password: z.ZodString;
-    nationalId: z.ZodOptional<z.ZodString>;
+    nationalId: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
     occupationAddress: z.ZodOptional<z.ZodString>;
     address: z.ZodOptional<z.ZodObject<{
         label: z.ZodOptional<z.ZodString>;
@@ -110,7 +110,7 @@ export declare const registerCustomerSchema: z.ZodObject<{
         country?: string | undefined;
     } | undefined;
     occupationAddress?: string | undefined;
-    nationalId?: string | undefined;
+    nationalId?: unknown;
 }>;
 export type RegisterCustomerDto = z.infer<typeof registerCustomerSchema>;
 export declare const createCustomerSchema: z.ZodObject<{

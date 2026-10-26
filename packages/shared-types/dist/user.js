@@ -27,6 +27,7 @@ export const updateUserRequestSchema = z
     branchId: uuidSchema.optional(),
     isActive: z.boolean().optional(),
     lang: languageSchema.optional(),
+    salary: z.preprocess((value) => typeof value === "string" && value.trim() === "" ? Number.NaN : value, z.coerce.number().finite().min(0).nullable().optional()),
 })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {

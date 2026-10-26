@@ -578,7 +578,7 @@ export default function CheckoutPage() {
                     <ul className="space-y-2 text-sm text-zinc-700">
                       <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> {isAr ? "سيتواصل معك فريقنا لتحديد موعد التسليم" : "Our team will contact you to schedule delivery"}</li>
                       <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> {isAr ? "يُرجى تجهيز المبلغ كاملاً عند الاستلام" : "Please prepare the full amount at the time of delivery"}</li>
-                      <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> {isAr ? "التوصيل داخل الإسكندرية فقط" : "Delivery within Alexandria only"}</li>
+                      <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> {isAr ? "التوصيل لجميع المحافظات" : "Delivery within all governates"}</li>
                     </ul>
                   </div>
                 )}

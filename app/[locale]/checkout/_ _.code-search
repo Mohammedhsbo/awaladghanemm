@@ -1,0 +1,9 @@
+# Query: التوصيل داخل
+# ContextLines: 1
+
+1 result - 1 file
+
+Motorcycle\motorcycle-web\app\[locale]\checkout\page.tsx:
+  580                        <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> {isAr ? "يُرجى تجهيز المبلغ كاملاً عند الاستلام" : "Please prepare the full amount at the time of delivery"}</li>
+  581:                       <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> {isAr ? "التوصيل داخل  جميع المحافظات" : "Delivery within all governates"}</li>
+  582                      </ul>

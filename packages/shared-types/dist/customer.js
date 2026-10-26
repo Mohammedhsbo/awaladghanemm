@@ -3,6 +3,7 @@ import { z } from "zod";
 const nameSchema = z.string().trim().min(2, "Name must be at least 2 characters").max(200, "Name is too long");
 const emailSchema = z.string().trim().email("Invalid email format").max(255, "Email is too long");
 const nationalIdSchema = z.string().trim().regex(/^[a-zA-Z0-9]+$/, "National ID must be alphanumeric").max(20, "National ID is too long");
+const optionalNationalIdSchema = z.preprocess((value) => typeof value === "string" && value.trim() === "" ? undefined : value, nationalIdSchema.optional());
 const notesSchema = z.string().max(2000, "Notes are too long");
 const passwordSchema = z.string().min(8, "Password must be at least 8 characters");
 const uuidSchema = z.string().uuid();
@@ -28,7 +29,7 @@ export const registerCustomerSchema = z
     phone: phoneSchema,
     email: emailSchema,
     password: passwordSchema,
-    nationalId: nationalIdSchema.optional(),
+    nationalId: optionalNationalIdSchema,
     occupationAddress: z.string().trim().max(500).optional(),
     address: z
         .object({
