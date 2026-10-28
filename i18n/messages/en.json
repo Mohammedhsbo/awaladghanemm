@@ -421,7 +421,11 @@
     "support2": "Secure customer account reservation flow.",
     "support3": "Payment and financing records remain backend-authoritative.",
     "overview": "Overview",
-    "descriptionFallback": "This motorcycle is part of live dealership inventory. Contact the dealership or reserve online to continue with the purchase process."
+    "descriptionFallback": "This motorcycle is part of live dealership inventory. Contact the dealership or reserve online to continue with the purchase process.",
+    "similarEyebrow": "Curated for you",
+    "similarTitle": "Similar motorcycles",
+    "similarSubtitle": "Discover other motorcycles that might be right for you.",
+    "viewDetails": "View details"
   },
   "productGallery": {
     "closeGallery": "Close gallery",

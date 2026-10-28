@@ -20,7 +20,7 @@ export function ProductGallery({ images, title }: ProductGalleryProps) {
     <>
       <div className="space-y-3">
         <button onClick={() => setFullscreen(true)} className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-zinc-100 text-left">
-          <MotorcycleVisual src={activeImage} alt={title} priority />
+          <MotorcycleVisual src={activeImage} alt={title} priority className="!object-contain p-4 sm:p-8" />
         </button>
         {images.length > 1 && <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
           {images.map((image, index) => (
