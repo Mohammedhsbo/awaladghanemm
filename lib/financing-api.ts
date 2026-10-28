@@ -8,6 +8,18 @@ export interface StoreSettings {
   instaPayAccount?: string | null;
   defaultDepositAmount?: number | null;
   defaultDepositPercentage?: number | null;
+  enabled?: boolean | null;
+  discountPercentage?: number | null;
+  downPaymentAmount?: number | null;
+  installmentDurationMonths?: number | null;
+}
+export interface OfferSettings {
+  enabled: boolean;
+  discountPercentage: number;
+  downPaymentAmount: number | null;
+  installmentDurationMonths: number;
+  currency: "EGP";
+  updatedAt?: string;
 }
 export interface InstallmentCalculation {
   motorcyclePrice: number;
@@ -31,6 +43,10 @@ export function listInstallmentDurations() {
 
 export function getStoreSettings() {
   return apiClient.get<StoreSettings | null>("/store-settings");
+}
+
+export function getOfferSettings() {
+  return apiClient.get<OfferSettings>("/offer-settings");
 }
 
 export function calculateInstallment(input: { motorcycleId: string; installmentDurationId: string; downPayment: number; financingCompanyId?: string }) {

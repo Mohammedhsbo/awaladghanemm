@@ -3,7 +3,7 @@ import { Link } from "@/i18n/routing";
 import { MotorcycleCard } from "@/components/MotorcycleCard";
 import { MotorcycleVisual } from "@/components/MotorcycleVisual";
 import { displayName, formatCurrency, listBrands, listCategories, listMotorcycles, normalizeImages } from "@/lib/catalog-api";
-import { getStoreSettings, listInstallmentDurations, calculateInstallment } from "@/lib/financing-api";
+import { getOfferSettings, listInstallmentDurations } from "@/lib/financing-api";
 import { ArrowRight, BadgeCheck, CreditCard, MapPin, ShieldCheck, Sparkles, Truck, Wrench } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     listMotorcycles({ limit: 4, sort: "createdAt", order: "desc" }).catch(() => ({ items: [], meta: { total: 0, page: 1, limit: 4, totalPages: 0 } })),
     listBrands().catch(() => []),
     listCategories().catch(() => []),
-    getStoreSettings().catch(() => null),
+    getOfferSettings().catch(() => null),
     listInstallmentDurations().catch(() => []),
   ]);
 
@@ -25,13 +25,27 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const inventoryUnavailable = featured.length === 0 && latest.length === 0 && brands.length === 0 && categories.length === 0;
   const brandCounts = new Map<string, number>();
   for (const bike of [...featured, ...latest]) brandCounts.set(bike.brand.id, (brandCounts.get(bike.brand.id) ?? 0) + 1);
-  const offerDuration = durations[durations.length - 1];
-  const offerDownPayment = settings?.defaultDepositAmount ?? (heroBike && settings?.defaultDepositPercentage
-    ? heroBike.price * settings.defaultDepositPercentage / 100
-    : undefined);
-  const offer = heroBike && offerDuration && offerDownPayment !== undefined && offerDownPayment < heroBike.price
-    ? await calculateInstallment({ motorcycleId: heroBike.id, installmentDurationId: offerDuration.id, downPayment: offerDownPayment }).catch(() => null)
-    : null;
+  const offerEnabled = Boolean(settings?.enabled);
+  const configuredDiscountPercentage = settings?.discountPercentage ?? 0;
+  const configuredDownPaymentAmount = settings?.downPaymentAmount ?? null;
+  const configuredInstallmentMonths = settings?.installmentDurationMonths ?? 0;
+  const safeDiscountPercentage = Number.isFinite(Number(configuredDiscountPercentage)) ? Number(configuredDiscountPercentage) : 0;
+  const safeDownPayment = configuredDownPaymentAmount != null && Number.isFinite(Number(configuredDownPaymentAmount)) ? Number(configuredDownPaymentAmount) : 0;
+  const safeInstallmentMonths = Number.isFinite(Number(configuredInstallmentMonths)) ? Number(configuredInstallmentMonths) : 0;
+  const discountedPrice = heroBike ? heroBike.price * (1 - safeDiscountPercentage / 100) : null;
+  const offerDuration = durations.find((duration) => duration.months === safeInstallmentMonths);
+  const hasValidOffer = Boolean(
+    offerEnabled
+    && heroBike
+    && settings?.downPaymentAmount != null
+    && safeDiscountPercentage > 0
+    && safeDiscountPercentage <= 100
+    && safeInstallmentMonths > 0
+    && offerDuration
+    && safeDownPayment >= 0
+    && discountedPrice !== null
+    && safeDownPayment < discountedPrice,
+  );
 
   return (
     <div className="bg-white">
@@ -88,21 +102,27 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 {t("hero.newSubheadline")}
               </p>
               
-              <div className="mt-8 flex gap-3 sm:gap-6 w-full justify-center lg:justify-start">
-                {/* 30% Box */}
-                <div className="flex-1 rounded-3xl border border-white/20 bg-white p-3 sm:p-5 text-[#003887] shadow-[0_0_20px_rgba(0,0,0,0.15)] flex flex-col items-center justify-center min-w-[120px] sm:min-w-[140px]">
-                  <div className="text-4xl sm:text-5xl font-black leading-none mb-2">{t("hero.discountValue")}</div>
-                  <div className="text-xs sm:text-sm font-bold text-center leading-tight">{t("hero.discountLabel")}</div>
+              {hasValidOffer && heroBike && discountedPrice !== null && safeDownPayment >= 0 && safeInstallmentMonths > 0 ? (
+                <div className="mt-8 w-full max-w-xl">
+                  <div className="flex gap-3 sm:gap-6 w-full justify-center lg:justify-start">
+                    <div className="flex-1 rounded-3xl border border-white/20 bg-white p-3 sm:p-5 text-[#003887] shadow-[0_0_20px_rgba(0,0,0,0.15)] flex flex-col items-center justify-center min-w-[120px] sm:min-w-[140px]">
+                      <div className="text-4xl sm:text-5xl font-black leading-none mb-2">{safeDiscountPercentage}%</div>
+                      <div className="text-xs sm:text-sm font-bold text-center leading-tight">{t("hero.discountLabel")}</div>
+                    </div>
+                    
+                    <div className="flex-1 rounded-3xl border border-white/20 bg-white p-3 sm:p-5 text-[#003887] shadow-[0_0_20px_rgba(0,0,0,0.15)] flex flex-col items-center justify-center min-w-[120px] sm:min-w-[140px] relative">
+                      <div className="absolute top-3 start-4 text-[10px] sm:text-xs font-bold">{t("hero.installmentLabel")}</div>
+                      <div className="absolute top-3 end-4 text-[10px] sm:text-xs font-bold">{t("hero.installmentDownpayment")}</div>
+                      <div className="text-5xl sm:text-6xl font-black leading-none my-2 text-[#0051b8]">{safeInstallmentMonths}</div>
+                      <div className="text-sm font-black">{t("hero.installmentMonths")}</div>
+                      <div className="mt-2 text-[10px] sm:text-xs font-bold text-[#0051b8]">{formatCurrency(safeDownPayment)}</div>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm sm:text-base font-bold text-white/95 text-center lg:text-start">
+                    {t("hero.discountLabel")}: <span className="line-through text-white/70">{formatCurrency(heroBike.price)}</span> {formatCurrency(discountedPrice)}
+                  </p>
                 </div>
-                
-                {/* 24 Month Box */}
-                <div className="flex-1 rounded-3xl border border-white/20 bg-white p-3 sm:p-5 text-[#003887] shadow-[0_0_20px_rgba(0,0,0,0.15)] flex flex-col items-center justify-center min-w-[120px] sm:min-w-[140px] relative">
-                  <div className="absolute top-3 start-4 text-[10px] sm:text-xs font-bold">{t("hero.installmentLabel")}</div>
-                  <div className="absolute top-3 end-4 text-[10px] sm:text-xs font-bold">{t("hero.installmentDownpayment")}</div>
-                  <div className="text-5xl sm:text-6xl font-black leading-none my-2 text-[#0051b8]">{t("hero.installmentValue")}</div>
-                  <div className="text-sm font-black">{t("hero.installmentMonths")}</div>
-                </div>
-              </div>
+              ) : null}
             </div>
           </div>
         </div>
