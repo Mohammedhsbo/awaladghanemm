@@ -85,7 +85,7 @@ export function Header() {
 
           <nav className="hidden md:flex flex-1 justify-center">
             <ul className="flex items-center gap-6 lg:gap-10">
-              <li><Link href="/" className="text-base font-bold text-white transition hover:text-white/80">{tCommon("home")}</Link></li>
+              <li><Link href="/" aria-current={isHome ? "page" : undefined} className={`relative text-base font-bold text-white transition hover:text-white/80 after:absolute after:-bottom-[1.65rem] after:inset-x-0 after:h-0.5 after:bg-cyan-300 after:transition-transform ${isHome ? "after:scale-x-100" : "after:scale-x-0 hover:after:scale-x-100"}`}>{tCommon("home")}</Link></li>
               <li><Link href="/motorcycles" className="text-base font-bold text-white transition hover:text-white/80">{tNav("motorcycles")}</Link></li>
               <li><Link href="/installment" className="text-base font-bold text-white transition hover:text-white/80">{tNav("installmentPage")}</Link></li>
               <li><Link href="/contact" className="text-base font-bold text-white transition hover:text-white/80">{tNav("contact")}</Link></li>

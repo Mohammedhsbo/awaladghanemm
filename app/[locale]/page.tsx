@@ -1,11 +1,10 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { MotorcycleCard } from "@/components/MotorcycleCard";
-import { MotorcycleVisual } from "@/components/MotorcycleVisual";
-import { displayName, formatCurrency, listBrands, listCategories, listMotorcycles, normalizeImages } from "@/lib/catalog-api";
+import { displayName, formatCurrency, listBrands, listCategories, listMotorcycles } from "@/lib/catalog-api";
 import { getOfferSettings, listInstallmentDurations } from "@/lib/financing-api";
 import { getHomepageOffer } from "@/lib/homepage-offer";
-import { ArrowRight, BadgeCheck, CreditCard, MapPin, ShieldCheck, Sparkles, Truck, Wrench } from "lucide-react";
+import { BadgeCheck, CalendarDays, CreditCard, MapPin, ShieldCheck, Sparkles, Tag, Truck, Wrench } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -26,96 +25,94 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       return [];
     }),
   ]);
-
   const heroBike = featured[0] ?? latest[0];
-  const heroImages = normalizeImages(heroBike?.images ?? []);
   const inventoryUnavailable = featured.length === 0 && latest.length === 0 && brands.length === 0 && categories.length === 0;
+  const headline = t("hero.newHeadline").split(" ");
   const brandCounts = new Map<string, number>();
   for (const bike of [...featured, ...latest]) brandCounts.set(bike.brand.id, (brandCounts.get(bike.brand.id) ?? 0) + 1);
   const offer = getHomepageOffer(settings, heroBike, durations);
 
   return (
     <div className="bg-white">
-      <section className="relative overflow-hidden bg-[#0051b8] text-white min-h-[90vh] flex flex-col justify-end pt-24 pb-0">
-        {/* Background Gradients & Image */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#002f7a] via-[#0051b8] to-[#0070e6]"></div>
-          <img src="/hero.png" alt="Hero" className="w-full h-full object-cover opacity-40" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-400/20 via-transparent to-transparent"></div>
+      <section className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-[#0051b8] text-white">
+        <div className="absolute inset-0 -z-10">
+          <img src="/hero.png" alt="" className="h-full w-full object-cover object-center" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(42,132,215,0.7)_0%,rgba(0,81,184,0.58)_48%,rgba(0,49,139,0.88)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(0,47,122,0.28)_0%,transparent_45%)]" />
         </div>
-        
-        {/* Main Content Area */}
-        <div className="section-shell relative z-20 mb-8 md:mb-12">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-8 md:gap-4 relative">
-            
-            {/* DOM 1: RIGHT VISUAL SIDE (Secondary Headline) */}
-            <div className="w-full lg:w-[30%] z-30 flex flex-col justify-center items-center lg:items-start text-center lg:text-start lg:order-1 order-3 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-              <h2 className="text-3xl font-black sm:text-4xl lg:text-5xl text-white mb-4 drop-shadow-md leading-tight">
+
+        <div className="section-shell relative z-10 flex w-full flex-1 items-center pb-12 pt-28 sm:pb-16 lg:pt-32">
+          <div className="flex w-full flex-col gap-12 md:flex-row md:items-center md:justify-between md:gap-10">
+            <div className="flex w-full flex-col items-start text-start md:w-[34%] md:max-w-[26rem] md:translate-x-8 md:translate-y-6">
+              <h2 className="max-w-[20rem] text-3xl font-black leading-tight drop-shadow-md sm:text-4xl lg:text-[3.25rem]">
                 {t("hero.rightHeadline")}
               </h2>
-              <p className="text-lg text-white/95 font-medium max-w-sm">
+              <p className="mt-[4.5rem] max-w-[18rem] text-base font-medium leading-relaxed text-white/90 sm:text-xl">
                 {t("hero.rightSubheadline")}
               </p>
-              
-              <div className="mt-8 lg:mt-32 flex items-center gap-2 text-white font-bold drop-shadow-md">
-                <span className="text-base">{t("hero.yearsInstallment")}</span>
-                <span className="text-5xl font-black mx-1">{t("hero.yearsValue")}</span>
-                <span className="text-base">{t("hero.yearsLabel")}</span>
+
+              <div className="mt-8 flex w-full max-w-lg items-center gap-4 rounded-[1.75rem] border border-cyan-300/50 bg-blue-900/20 px-5 py-4 shadow-lg backdrop-blur-sm sm:mt-12 md:mt-24 md:max-w-[25rem] sm:px-7 sm:py-5">
+                <CalendarDays className="h-7 w-7 shrink-0 text-white sm:h-8 sm:w-8" strokeWidth={1.7} />
+                <span className="flex-1 text-sm font-medium leading-relaxed text-white/90 sm:text-base">
+                  {t("hero.yearsInstallment")}
+                </span>
+                <span className="h-11 w-px shrink-0 bg-white/70" />
+                <span className="flex shrink-0 items-baseline gap-2">
+                  <span className="text-5xl font-black leading-none sm:text-6xl">{t("hero.yearsValue")}</span>
+                  <span className="text-sm font-bold sm:text-base">{t("hero.yearsLabel")}</span>
+                </span>
               </div>
             </div>
 
-            {/* DOM 2: CENTER - Motorcycle Image */}
-            <div className="w-full lg:w-[40%] z-40 relative flex justify-center lg:order-2 order-1">
-              <div className="relative w-full max-w-xl mx-auto drop-shadow-[0_30px_50px_rgba(0,0,0,0.5)] lg:scale-125 lg:translate-y-8 animate-zoom-in" style={{ animationDelay: '100ms' }}>
-                {heroBike ? (
-                  <MotorcycleVisual src={heroImages[0]} alt={`${displayName(heroBike.brand, locale)} ${heroBike.model}`} className="w-full h-auto object-contain" priority />
+            <div className="flex w-full flex-col items-start text-start md:w-[36%] md:max-w-[28rem] md:-translate-y-5">
+              <h1 className="max-w-[21rem] text-4xl font-black leading-[1.15] drop-shadow-lg sm:text-5xl lg:text-[4.5rem] md:-translate-y-2">
+                {locale === "ar" ? (
+                  <>
+                    {headline.slice(0, 2).join(" ")}
+                    <br />
+                    {headline.slice(2, -1).join(" ")}{" "}
+                  </>
                 ) : (
-                  <img src="/hero.png" alt="Hero" className="w-full h-auto object-contain" />
+                  `${headline.slice(0, -1).join(" ")} `
                 )}
-              </div>
-            </div>
-
-            {/* DOM 3: LEFT VISUAL SIDE (Big Headline) */}
-            <div className="w-full lg:w-[30%] z-30 flex flex-col justify-center items-center lg:items-start text-center lg:text-start lg:order-3 order-2 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-              <h1 className="text-5xl font-black leading-tight sm:text-6xl lg:text-7xl mb-4 text-white drop-shadow-lg">
-                {t("hero.newHeadline").split(' ').slice(0, -1).join(' ')}{' '}
                 <span className="relative inline-block pb-2">
-                  {t("hero.newHeadline").split(' ').slice(-1)}
-                  <span className="absolute bottom-0 left-0 right-0 h-1.5 bg-white rounded-full"></span>
+                  {headline[headline.length - 1]}
+                  <span className="absolute inset-x-0 bottom-0 h-1 rounded-full bg-cyan-300" />
                 </span>
               </h1>
-              
-              <p className="mt-4 text-lg font-bold text-white/95 max-w-sm">
+              <p className="mt-5 max-w-lg text-base font-medium leading-relaxed text-white/90 sm:text-lg">
                 {t("hero.newSubheadline")}
               </p>
-              
-              {offer ? (
-                <div className="mt-8 w-full max-w-xl">
-                  <div className="flex gap-3 sm:gap-6 w-full justify-center lg:justify-start">
-                    <div className="flex-1 rounded-3xl border border-white/20 bg-white p-3 sm:p-5 text-[#003887] shadow-[0_0_20px_rgba(0,0,0,0.15)] flex flex-col items-center justify-center min-w-[120px] sm:min-w-[140px]">
-                      <div className="text-4xl sm:text-5xl font-black leading-none mb-2">{offer.discountPercentage}%</div>
-                      <div className="text-xs sm:text-sm font-bold text-center leading-tight">{t("hero.discountLabel")}</div>
+
+              {offer && (
+                <div className="mt-5 grid w-full max-w-[26rem] grid-cols-2 gap-4 sm:gap-5">
+                  <div className="flex min-h-44 flex-col items-center justify-center rounded-[1.5rem] border border-white/70 bg-white/90 px-4 py-5 text-[#0753ae] shadow-xl backdrop-blur-sm sm:min-h-48 sm:px-5">
+                    <div className="mb-3 flex items-center gap-2 text-center text-xs font-bold leading-tight sm:text-sm">
+                      <Tag className="h-5 w-5 shrink-0" strokeWidth={1.8} />
+                      <span>{t("hero.discountLabel")}</span>
                     </div>
-                    
-                    <div className="flex-1 rounded-3xl border border-white/20 bg-white p-3 sm:p-5 text-[#003887] shadow-[0_0_20px_rgba(0,0,0,0.15)] flex flex-col items-center justify-center min-w-[120px] sm:min-w-[140px] relative">
-                      <div className="absolute top-3 start-4 text-[10px] sm:text-xs font-bold">{t("hero.installmentLabel")}</div>
-                      <div className="absolute top-3 end-4 text-[10px] sm:text-xs font-bold">{t("hero.installmentDownpayment")}</div>
-                      <div className="text-5xl sm:text-6xl font-black leading-none my-2 text-[#0051b8]">{offer.installmentDurationMonths}</div>
-                      <div className="text-sm font-black">{t("hero.installmentMonths")}</div>
-                      <div className="mt-2 text-[10px] sm:text-xs font-bold text-[#0051b8]">{formatCurrency(offer.downPaymentAmount)}</div>
-                    </div>
+                    <span className="text-5xl font-black leading-none sm:text-6xl">{offer.discountPercentage}%</span>
                   </div>
-                  <p className="mt-4 text-sm sm:text-base font-bold text-white/95 text-center lg:text-start">
-                    {t("hero.discountLabel")}: <span className="line-through text-white/70">{formatCurrency(offer.originalPrice)}</span> {formatCurrency(offer.discountedPrice)}
-                  </p>
+                  <div className="flex min-h-44 flex-col items-center justify-center rounded-[1.5rem] border border-white/70 bg-white/90 px-4 py-5 text-[#0753ae] shadow-xl backdrop-blur-sm sm:min-h-48 sm:px-5">
+                    <div className="mb-2 flex w-full items-center justify-between gap-2 text-[11px] font-bold sm:text-xs">
+                      <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4" />{t("hero.installmentLabel")}</span>
+                      <span>{t("hero.installmentDownpayment")}</span>
+                    </div>
+                    <span className="text-5xl font-black leading-none sm:text-6xl">{offer.installmentDurationMonths}</span>
+                    <span className="mt-1 text-sm font-black">{t("hero.installmentMonths")}</span>
+                    <span className="mt-3 w-full border-t border-blue-200 pt-2 text-center text-sm font-bold sm:text-base">
+                      {formatCurrency(offer.downPaymentAmount)}
+                    </span>
+                  </div>
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
         </div>
 
-        {/* BOTTOM STRIP (Trust Badges & Brands) ON WHITE BACKGROUND */}
-        <div className="relative z-50 w-full bg-white text-[#003887] shadow-[0_-10px_30px_rgba(0,0,0,0.1)]">
+      </section>
+
+      <section className="relative z-10 w-full bg-white text-[#003887] shadow-[0_-10px_30px_rgba(0,0,0,0.1)]">
           {/* Subtle curved top effect */}
           <div className="absolute -top-6 left-0 right-0 h-12 bg-white" style={{ borderRadius: '50% 50% 0 0 / 100% 100% 0 0' }}></div>
           
@@ -144,7 +141,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
             </div>
           </div>
-        </div>
       </section>
 
       {/* BRANDS SECTION */}
