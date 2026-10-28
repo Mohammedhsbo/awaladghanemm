@@ -46,7 +46,7 @@ export function getStoreSettings() {
 }
 
 export function getOfferSettings() {
-  return apiClient.get<OfferSettings>("/offer-settings");
+  return apiClient.get<OfferSettings>("/offer-settings", { cache: "no-store" });
 }
 
 export function calculateInstallment(input: { motorcycleId: string; installmentDurationId: string; downPayment: number; financingCompanyId?: string }) {
